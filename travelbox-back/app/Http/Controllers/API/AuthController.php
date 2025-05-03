@@ -179,7 +179,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $request->user()->id,
-            'avatar' => 'nullable|string|max:65535',
+            'avatar' => 'nullable|string',
             'phone_number' => 'nullable|string|max:20',
         ]);
 
@@ -192,12 +192,25 @@ class AuthController extends Controller
 
         $user = $request->user();
         
-        $user->update([
-            'name' => $request->name ?? $user->name,
-            'email' => $request->email ?? $user->email,
-            'avatar' => $request->avatar ?? $user->avatar,
-            'phone_number' => $request->phone_number ?? $user->phone_number,
-        ]);
+        try {
+            $user->update([
+                'name' => $request->name ?? $user->name,
+                'email' => $request->email ?? $user->email,
+                'avatar' => $request->avatar ?? $user->avatar,
+                'phone_number' => $request->phone_number ?? $user->phone_number,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la mise à jour du profil utilisateur : ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+                'request_data' => $request->all(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur serveur lors de la mise à jour du profil.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
